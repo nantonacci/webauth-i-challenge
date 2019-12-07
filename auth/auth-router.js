@@ -1,6 +1,5 @@
 const router = require("express").Router();
 const bcrypt = require("bcryptjs");
-const authorize = require("./auth-required-middleware.js");
 
 const Users = require("../users/users-model.js");
 
@@ -19,11 +18,42 @@ router.post("/register", (req, res) => {
     });
 });
 
-// post login
-router.post("/login", authorize, (req, res) => {
-  let { username } = req.headers;
+// post log in
+router.post("/login", (req, res) => {
+  let { username, password } = req.body;
 
-  res.status(200).json({ message: `Hi, ${username}. You are logged in.` });
+  Users.findBy({ username })
+    .first()
+    .then(user => {
+      if (user && bcrypt.compareSync(password, user.password)) {
+        req.session.loggedin = true;
+        res
+          .status(200)
+          .json({ message: `Hi, ${username}. You are logged in.` });
+      } else {
+        res.status(401).json({ message: "Login unsuccessful. Try again." });
+      }
+    })
+    .catch(error => {
+      res.status(500).json(error);
+    });
+});
+
+// delete log out
+router.delete("/logout", (req, res) => {
+  if (req.session) {
+    console.log(req.session);
+
+    req.session.destroy(err => {
+      if (err) {
+        res.status(400).send("you are not allowed to leave");
+      } else {
+        res.send("alright, you can go...");
+      }
+    });
+  } else {
+    res.end();
+  }
 });
 
 module.exports = router;
